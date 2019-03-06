@@ -1,4 +1,4 @@
-module Patterns (Pattern(..), Matcher(..), TokenResult, getNextToken, parseText, charMatches, matchPattern) where
+module Patterns (Pattern(..), Matcher(..), TokenResult(..), getNextToken, parseText, charMatches, matchPattern) where
     
 import qualified Data.Text as T
 import qualified Data.Char as C
@@ -7,7 +7,8 @@ data Matcher = Any | Char C.Char | OneOf T.Text
     deriving (Eq, Show)
 
 data Pattern = Match Matcher | Repeat Pattern Int | RepeatMost Pattern Int |
-    Sequence Pattern Pattern | Fork Pattern Pattern | Until Matcher | Bottom
+    Sequence Pattern Pattern | Fork Pattern Pattern | Until Matcher | While Matcher |
+    Bottom
     deriving (Eq, Show)
 
 data TokenResult = Result T.Text T.Text | None
@@ -72,7 +73,13 @@ matchPattern text build (Fork a b) = case matchPattern text build a of
 matchPattern text build (Until m) 
     | T.length text <= 0 = Nothing    
     | otherwise = case matchPattern text build (Match m) of
+        Nothing -> matchPattern (T.tail text) ((T.head text) : build) (Until m) 
+        Just _ -> Just build 
+
+matchPattern text build (While m)
+    | T.length text <= 0 = Nothing
+    | otherwise = case matchPattern text build (Match m) of
         Nothing -> Just build
-        Just newBuild -> matchPattern (T.tail text) newBuild (Until m)
+        Just newBuild -> matchPattern (T.tail text) ((T.head text) : build) (While m)
 
 matchPattern _ build Bottom = Just build
